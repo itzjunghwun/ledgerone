@@ -1,6 +1,7 @@
 'use client' 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 type Invoice = { // Invoice type definition
   id: string
@@ -11,10 +12,7 @@ type Invoice = { // Invoice type definition
 }
 
 export default function Home() { // Main component (Dashboard State)
-  const [email, setEmail] = useState('')
-  const [amount, setAmount] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [password, setPassword] = useState('')
   const [isLogin, setIsLogin] = useState(true)
@@ -26,116 +24,52 @@ export default function Home() { // Main component (Dashboard State)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
-  async function fetchInvoices() { // Fetch invoices from Supabase
-    if (!user) return
-
-    const { data, error } = await supabase.from('invoices').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-
-    if (error) {
-      console.error("Error fetching invoices:", error) // Log any errors
-      return
-    }
-
-    const formatted = data.map((invoice) => ({ // Format the fetched invoices
-      id: invoice.id,
-      email: invoice.email,
-      amount: invoice.amount,
-      dueDate: invoice.due_date,
-      status: invoice.status,
-    }))
-
-    setInvoices(formatted) // Update the state with the fetched invoices
-  }
-
   useEffect(() => { // Fetch invoices on component mount (Auth Initialization + Listener)
     async function initialize() {
       const { data } = await supabase.auth.getUser()
       setUser(data.user)
+
+      if (data.user) {
+        router.push('/dashboard')
+      }
     }
     initialize()
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null)
+
+        if (session?.user) {
+          router.push('/dashboard')
+        }
+      }
+    )
 
     return () => {
       listener.subscription.unsubscribe()
     }
   }, [])
 
-  useEffect(() => {
-    if (user) {
-      fetchInvoices()
-    } else {
-      setInvoices([]) // Clear invoices on logout
-    }
-  }, [user])
-
-  async function addInvoice() { // Add a new invoice
-    if (!email || !amount || !dueDate || !user) return
-
-    const { error } = await supabase.from('invoices').insert([ // Insert a new invoice
-      {
-        email: email, // Client email
-        amount: Number(amount), // Convert amount to number
-        due_date: dueDate, // Convert dueDate to string
-        user_id: user.id, // Associate invoice with user
-      },
-    ])
-
-    if (error) { // Log any errors
-      console.error('Error inserting invoice:', error)
-      return
-    } 
-
-    await fetchInvoices() // Refresh the invoice list
-
-    setEmail('') // Clear the email input
-    setAmount('') // Clear the amount input
-    setDueDate('') // Clear the due date input
-  }
-
-  async function deleteInvoice(id: string) { // Delete an invoice
-    const { error } = await supabase.from('invoices').delete().eq('id', id) // .eq('id', id) -> WHERE id = ?
-
-    if (error) { // Log any errors
-      console.error('Error deleting invoice:', error)
-      return
-    }
-
-    await fetchInvoices() // Refresh the invoice list
-  }
-
-  async function toggleStatus(id: string, currentStatus: string) { // Toggle invoice status
-    const newStatus = currentStatus === 'unpaid' ? 'paid' : 'unpaid'
-    
-    const { error } = await supabase
-      .from('invoices')
-      .update({ status: newStatus })
-      .eq('id', id)
-
-    if (error) {
-      console.error('Error updating invoice status:', error)
-      return
-    }
-
-    await fetchInvoices() // Refresh the invoice list
-  }
-
   const passwordRequirements = {
-    length: password.length >= 8,
+    length: password.length >= 10,
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
+    symbol: /[^A-Za-z0-9]/.test(password),
   }
 
   const passwordValid = 
     passwordRequirements.length &&
     passwordRequirements.uppercase &&
     passwordRequirements.lowercase &&
-    passwordRequirements.number
-  
-  const strengthScore = password 
+    passwordRequirements.number &&
+    passwordRequirements.symbol
+
+  const canSubmit = isLogin
+    ? loginEmail.length > 0 && password.length > 0
+    : loginEmail.length > 0 && passwordValid
+
+  const strengthScore = password
     ? Object.values(passwordRequirements).filter(Boolean).length
     : 0
     const hasTypedPassword = password.length > 0
@@ -151,51 +85,75 @@ export default function Home() { // Main component (Dashboard State)
 
     setLoading(true)
 
+    // Login logic
     if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password }) // Sign in with email and password
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password,
+      }) // Sign in with email and password
 
       if (error) {
-        setAuthError(
-          'Invalid email or password. Please try again.'
-        )
+        setAuthError("Invalid email or password. Please try again.")
         setLoading(false)
         return
       }
-    } else {
-      // Block sign up if password is invalid
-      if (!passwordValid) {
-        setLoading(false)
-        return
-      }
+
+      setLoading(false)
+      return
+    }
 
       const { error } = await supabase.auth.signUp({
         email: loginEmail,
-        password: password,
+        password,
         options: {
-          emailRedirectTo: 'http://localhost:3000', // Redirect URL after email verification
+          emailRedirectTo: "http://localhost:3000", // Redirect URL after email verification
         },
-      }) // Sign up with email and password
+      })
 
       if (error) {
-        setAuthError("Please enter a valid email and password.") // Show error message
+        // Detect duplicate email
+        if (
+          error.message.toLowerCase().includes("already") ||
+          error.message.toLowerCase().includes("exists")
+        ) {
+          setAuthError(
+            "An account with this email already exists. Try logging in instead."
+          )
+        } else {
+          setAuthError(error.message)
+        }
+
         setLoading(false)
         return
       }
 
       setAuthSuccess(
-        'Account created successfully! Please check your email to verify before logging in.'
+        "If this email is not already registered, you will receive a verification email shortly." // 
       )
-    }
+
     setLoading(false)
   }
 
   if (!user) { // Login Screen with Email and Password OR create account
     return  (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white shadow-2xl rounded-2xl p-12 w-[420px] flex flex-col gap-6">
-          <h1 className="text-2xl font-semibold text-center text-black">
-            {isLogin ? 'Login' : 'Create a New Account'} {/* Separate create account section */}
-          </h1>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4">
+        <div className="w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-xl p-10 flex flex-col gap-6">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-xl">L</span>
+            </div>
+            <h1 className="text-2xl text-black font-semibold tracking-tight">
+              LedgerOne
+            </h1>
+            <p className="text-sm text-gray-500 text-center">
+              Smart invoice management for modern businesses
+            </p>
+          </div>
+
+          <h2 className="text-center text-gray-700 font-medium">
+            {isLogin ? 'Sign in to your account' : 'Create a new account'}
+          </h2>
 
           {/* Floating Email Input */}
           <div className="relative">
@@ -204,30 +162,9 @@ export default function Home() { // Main component (Dashboard State)
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
               placeholder=" "
-              className="
-                peer
-                w-full
-                border border-black
-                px-4 pt-6 pb-2
-                rounded-md
-                text-black
-                focus:outline-none
-              "
+              className="peer w-full border border-gray-300 px-4 pt-6 pb-2 rounded-md focus:outline-none focus:ring-2 focus:ring-black caret-black text-black"
             />
-            <label 
-              className="
-                absolute left-3
-                bg-white px-1
-                text-gray-500
-                transition-all
-                pointer-events-none
-                peer-placeholder-shown:top-4
-                peer-placeholder-shown:text-base
-                peer-focus:top-1
-                peer-focus:text-xs
-                peer-focus:text-black
-                top-1 text-xs
-              "
+            <label className="absolute left-3 top-1 text-xs text-gray-500 peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-xs transition-all"
             >
               Email
             </label>
@@ -240,47 +177,23 @@ export default function Home() { // Main component (Dashboard State)
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder=" "
-              className="
-                peer
-                w-full
-                border border-black
-                px-4 pt-6 pb-2 pr-12
-                rounded-md
-                text-black
-                focus:outline-none
-              "
+              className="peer w-full border border-gray-300 px-4 pt-6 pb-2 rounded-md focus:outline-none focus:ring-2 focus:ring-black caret-black text-black"
             />
-            <label
-              className="
-                absolute left-3
-                bg-white px-1
-                text-gray-500
-                transition-all
-                pointer-events-none
-                peer-placeholder-shown:top-4
-                peer-placeholder-shown:text-base
-                peer-focus:top-1
-                peer-focus:text-xs
-                peer-focus:text-black
-                top-1 text-xs
-              "
-            >
+            <label className="absolute left-3 top-1 text-xs text-gray-500 peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-xs transition-all">
               Password
             </label>
 
-            {/* Show Password Toggle */}
-            <button 
+            {/* Show / Hide Password Button */}
+            <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 translate-y-[-50%] text-gray-500 hover:text-black transition"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 hover:text-black transition"
             >
               {showPassword ? (
-              /*Eye Off SVG */
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M17.94 17.94A10.94 10.94 0 0112 19C7 19 2.73 15.11 1 12c.66-1.23 1.63-2.52 2.88-3.73M9.9 4.24A10.94 10.94 0 0112 5c5 0 9.27 3.89 11 7a10.94 10.94 0 01-4.06 4.94M1 1l22 22"/>
-              </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M17.94 17.94A10.94 10.94 0 0112 19C7 19 2.73 15.11 1 12c.66-1.23 1.63-2.52 2.88-3.73M9.9 4.24A10.94 10.94 0 0112 5c5 0 9.27 3.89 11 7a10.94 10.94 0 01-4.06 4.94M1 1l22 22"/>
+                </svg>
               ) : (
-                /* Eye On SVG */
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
                   <circle cx="12" cy="12" r="3"/>
@@ -289,7 +202,89 @@ export default function Home() { // Main component (Dashboard State)
             </button>
           </div>
 
-          {/* Remember Me + Forgot*/}
+          {/* Password Requirements + Strength (Sign Up Only) */}
+          {!isLogin && (
+            <div className="text-sm space-y-2">
+              <p className={`font-medium ${hasTypedPassword ? "text-gray-700" : "text-gray-400"}`}>
+                Password must contain:
+              </p>
+
+              <ul className="ml-5 space-y-1">
+                <li className={
+                  !hasTypedPassword
+                    ?"text-gray-600"
+                    :passwordRequirements.length
+                    ? "text-green-600"
+                    : "text-red-500"
+                }>
+                  At least 10 characters
+                </li>
+                
+                <li className={
+                  !hasTypedPassword
+                    ? "text-gray-600"
+                    : passwordRequirements.uppercase
+                    ?"text-green-600"
+                    : "text-red-500"
+                }>
+                  At least 1 uppercase letter
+                </li>
+
+                <li className={
+                  !hasTypedPassword
+                    ? "text-gray-600"
+                    : passwordRequirements.lowercase
+                    ?"text-green-600"
+                    : "text-red-500"
+                }>
+                  At least 1 lowercase letter
+                </li>
+
+                <li className={
+                  !hasTypedPassword
+                    ? "text-gray-600"
+                    : passwordRequirements.number
+                    ?"text-green-600"
+                    : "text-red-500"
+                }>
+                  At least 1 number
+                </li>
+
+                <li className={
+                  !hasTypedPassword
+                    ? "text-gray-600"
+                    : passwordRequirements.symbol
+                    ?"text-green-600"
+                    : "text-red-500"
+                }>
+                  At least 1 special character
+                </li>
+              </ul>
+
+              {/* Strength Bar */}
+              <div className="mt-2">
+                <div className="h-2 bg-gray-200 rounded-full"> {/* Strength bar background */}
+                  <div
+                    className={`h-2 rounded-full transition-all duration-300 ${ 
+                      strengthScore === 0
+                        ? "w-0"
+                        : strengthScore === 1
+                        ? "w-1/5 bg-red-500"
+                        : strengthScore === 2
+                        ? "w-2/5 bg-orange-500"
+                        : strengthScore === 3
+                        ? "w-3/5 bg-yellow-500"
+                        : strengthScore === 4
+                        ? "w-4/5 bg-green-400"
+                        : "w-full bg-green-600"
+                    }`}
+                    />
+                  </div>
+                </div>
+              </div>
+          )}
+
+          {/* Remember Me + Forgot */}
           {isLogin && (
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 cursor-pointer text-gray-700">
@@ -301,7 +296,7 @@ export default function Home() { // Main component (Dashboard State)
                 />
                 Remember Me
               </label>
-
+              
               <button
                 type="button"
                 onClick={async () => {
@@ -311,103 +306,28 @@ export default function Home() { // Main component (Dashboard State)
                   }
 
                   await supabase.auth.resetPasswordForEmail(loginEmail, {
-                    redirectTo: "http://localhost:3000",
+                    redirectTo: "http://localhost:3000"
                   })
 
                   setAuthSuccess("Password reset email sent.")
                 }}
-                className="text-blue-500 text-xs hover:underline self-end"
+                className="text-blue-500 text-xs hover:underline"
               >
                 Forgot Password?
               </button>
             </div>
           )}
 
-          {/* Live Password Requirements (Only Show on Sign Up) */}
-          {!isLogin && (
-            <div className="text-sm space-y-1">
-              <p className={`font-medium ${hasTypedPassword ? "text-gray-600" : "text-gray-400"}`}>Password must contain:</p>
-
-              <ul className="ml-5 space-y-1">
-                <li 
-                  className={
-                    !hasTypedPassword
-                    ? "text-gray-400"
-                    : passwordRequirements.length
-                    ? "text-green-600"
-                    : "text-red-500"
-                  }
-                >
-                  At least 8 characters long
-                </li>
-                <li 
-                  className={
-                    !hasTypedPassword
-                    ? "text-gray-400"
-                    : passwordRequirements.uppercase
-                    ? "text-green-600"
-                    : "text-red-500"
-                  }
-                >
-                  At least 1 uppercase letter
-                </li>
-                <li 
-                  className={
-                    !hasTypedPassword
-                    ? "text-gray-400"
-                    : passwordRequirements.lowercase
-                    ? "text-green-600"
-                    : "text-red-500"
-                  }
-                >
-                  At least 1 lowercase letter
-                </li>
-                <li 
-                  className={
-                    !hasTypedPassword
-                    ? "text-gray-400"
-                    : passwordRequirements.number
-                    ? "text-green-600"
-                    : "text-red-500"
-                  }
-                >
-                  At least 1 number
-                </li>
-              </ul>
-            </div>
-          )}
-
-          {/* Password Strength Bar */}
-          {!isLogin && (
-            <div className="mt-2">
-              <div className="h-2 bg-gray-200 rounded-full">
-                <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    strengthScore === 0
-                      ? "w-0"
-                      : strengthScore === 1
-                      ? "w-1/4 bg-red-500"
-                      : strengthScore === 2
-                      ? "w-2/4 bg-yellow-500"
-                      : strengthScore === 3
-                      ? "w-3/4 bg-green-500"
-                      : "w-full bg-green-600"
-                  }`}
-                />
-              </div>
-            </div>
-          )}
-          
-          {/* Error Message */}
+          {/* Error */}
           {authError && (
-            <p className="text-red-500 text-sm text-center">
+            <p className="text-red-500 text-sm">
               {authError}
             </p>
           )}
 
-          {/* Success Message */}
+          {/* Success */}
           {authSuccess && (
-            <p className="text-green-500 text-sm text-center">
+            <p className="text-green-600 text-sm text-center">
               {authSuccess}
             </p>
           )}
@@ -415,122 +335,43 @@ export default function Home() { // Main component (Dashboard State)
           {/* Auth Button */}
           <button
             onClick={handleAuth}
-            className={`p-2 rounded transition text-white ${
-              isLogin
-              ? "bg-blue-500 hover:bg-blue-700 active:scale-[0.98]"
-              : passwordValid
-              ? "bg-green-600 hover:bg-green-700"
-              : "bg-gray-400 cursor-not-allowed"
-            }`}
-            disabled={loading || (!isLogin && !passwordValid)}
+            disabled={!canSubmit || loading}
+            className={`
+              w-full py-3 rounded-lg transition-all duration-200 font-medium
+              ${!canSubmit
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : loading
+                ? "bg-gray-400 text-white cursor-wait"
+                : "bg-black text-white hover:bg-gray-800 active:scale-[0.98]"
+              }
+            `}
+
           >
-            {loading 
-            ? 'Processing...' 
-            : isLogin
-            ? 'Login'
-            : 'Sign Up'}
+            {loading
+              ? "Processing..."
+              : isLogin
+              ? "Login"
+              : "Create Account"}
           </button>
 
-          {/* Toggle Login/Register */}
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin)
-              setAuthError(null) // Clear error when toggling
-              setAuthSuccess(null) // Clear success message when toggling
-            }}
-            className="text-center text-sm text-blue-500"
-          >
-            {isLogin 
-            ? "Don't have an account?" 
-            : 'Already have an account?'}
-          </button>
+            {/* Toggle */}
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin)
+                setAuthError(null) // Clear error when toggling
+                setAuthSuccess(null) // Clear success message when toggling
+              }}
+              className="text-center text-sm text-gray-600 hover:text-black transition"
+            >
+              {isLogin
+                ? "Don't have an account? Sign Up"
+                : "Already have an account? Login"}
+            </button>
+
+          </div>
         </div>
-      </div>
-    )
+      )
+    }
+
+  return null
   }
-
-  return ( // Main component return (Dashboard)
-    <main className="min-h-screen flex flex-col items-center justify-center gap-6"> 
-      <div className="flex items-center gap-4">
-        <h1 className="text-3xl font-bold">Invoice Reminders</h1>
-
-        <button // Logout button
-          onClick={async () => {
-            await supabase.auth.signOut()
-          }}
-          className="bg-gray-200 text-black px-4 py-2 rounded"
-        >
-          Logout
-        </button>
-      </div>
-      
-      <h2 className="text-xl font-bold">
-        Create Your Invoices Below!
-      </h2>
-
-      <div className="flex flex-col gap-2 w-64"> 
-        <input
-          className="border px-3 py-2 rounded" // Client email input
-          placeholder="Client email" // Placeholder for client email
-          value={email} // Value for client email
-          onChange={(e) => setEmail(e.target.value)} // Update email state
-        />
-
-        <input
-          className="border px-3 py-2 rounded" // Invoice amount input
-          placeholder="Amount" // Placeholder for invoice amount
-          type="number" // Type for invoice amount
-          value={amount} // Value for invoice amount
-          onChange={(e) => setAmount(e.target.value)} // Update amount state
-        />
-
-        <input
-          className="border px-3 py-2 rounded" 
-          type="date"
-          value={dueDate} // Value for due date
-          onChange={(e) => setDueDate(e.target.value)} // Update due date state
-        />
-
-        <button // Add Invoice button
-          className="bg-white text-black px-4 py-2 rounded"
-          onClick={addInvoice}
-        >
-          Add Invoice
-        </button>
-      </div>
-
-        <ul className="mt-4"> 
-          {invoices.map((invoice) => ( // Map through invoices
-            <li key={invoice.id} className="border p-4 w-80"> 
-              <p>Email: {invoice.email}</p>
-              <p>Amount: ${invoice.amount}</p>
-              <p>Due: {invoice.dueDate}</p>
-              <p>
-                Status:{' '}
-                <span className={`font-bold ${invoice.status === 'paid' ? 'text-green-500' : 'text-red-500'}`}>
-                  {invoice.status}
-                </span>
-              </p>
-
-              <div className="mt-3 flex gap-3">
-                <button // Delete button
-                  className="flex-1 bg-red-500 hover:bg-red-600 transition text-white py-2 rounded" // flex-1 forces both buttons to take equal width
-                  onClick={() => deleteInvoice(invoice.id)}
-                >
-                  Delete
-                </button>
-
-                <button // Toggle Status button
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 transition text-white py-2 rounded text-center"
-                  onClick={() => toggleStatus(invoice.id, invoice.status)} // We pass invoice.status into toggleStatus instead of just reading from state inside the function because we are capturing the EXACT current status at the moment the button is clicked, which makes the function predictable, pure, and not dependent on outer state
-                >
-                  Mark as {invoice.status === 'unpaid' ? 'Paid' : 'Unpaid'}
-                </button>
-              </div>
-              
-            </li>
-          ))}
-        </ul>
-    </main>
-  )
-}
