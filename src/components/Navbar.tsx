@@ -9,7 +9,7 @@ export default function Navbar({ user }: {user: any }) {
         <nav className="w-full bg-black text-white border-b border-gray-800 px-8 py-4 flex justify-between items-center">
             <div 
                 onClick={() => router.push('/dashboard')}
-                className="text-xl font-semiboldcursor-pointer"
+                className="text-xl font-semibold cursor-pointer"
             >
                 LedgerOne
             </div>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect} from 'react'
 import { supabase } from '@/lib/supabase'
-import Navbar from '@/components/Navbar'
 
 type Invoice = {
     id: string
@@ -101,10 +100,7 @@ export default function Dashboard() { // Dashboard component
     if (!user) return null
 
     return (
-        <>
-        <Navbar user={user} />
-
-        <main className="min-h-screen flex flex-col items-center justify-center gap-6 px-8">
+        <main className="flex flex-col items-center gap-12 px-8 pt-20 transition-colors duration-300">
         <h1 className="text-3xl font-bold">Invoice Reminders</h1>
         <h2 className="text-xl font-bold">
             Create Your Invoices Here!
@@ -112,20 +108,47 @@ export default function Dashboard() { // Dashboard component
 
         <div className="flex flex-col gap-2 w-64">
             <input 
-                className="border px-3 py-2 rounded"
+                className="
+                border 
+                px-3 py-2 
+                rounded-md 
+                bg-white text-black 
+                dark:bg-zinc-800 dark:text-white 
+                border-gray-300 dark:border-zinc-700
+                focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white
+                transition-colors duration-300
+                "
                 placeholder="Client Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
             />
             <input 
-                className="border px-3 py-2 rounded"
+                className="
+                border 
+                px-3 py-2 
+                rounded-md 
+                bg-white text-black 
+                dark:bg-zinc-800 dark:text-white 
+                border-gray-300 dark:border-zinc-700
+                focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white
+                transition-colors duration-300
+                "
                 placeholder="Amount"
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
             />
             <input 
-                className="border px-3 py-2 rounded"
+                className="
+                border 
+                px-3 py-2 
+                rounded-md 
+                bg-white text-black 
+                dark:bg-zinc-800 dark:text-white 
+                border-gray-300 dark:border-zinc-700
+                focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white
+                transition-colors duration-300
+                "
                 type="date"
                 placeholder="Due Date"
                 value={dueDate}
@@ -133,7 +156,14 @@ export default function Dashboard() { // Dashboard component
             />
 
             <button
-                className="bg-white text-black px-4 py-2 rounded"
+                className="
+                    bg-black text-white 
+                    dark:bg-white dark:text-black 
+                    px-4 py-2 
+                    rounded-md 
+                    transition-colors duration-300 
+                    hover:opacity-80
+                "
                 onClick={addInvoice}
             >
                 Add Invoice
@@ -142,7 +172,7 @@ export default function Dashboard() { // Dashboard component
 
         <ul className="mt-4">
             {invoices.map((invoice) => (
-                <li key={invoice.id} className="border p-4 w-80">
+                <li key={invoice.id} className="border p-5 w-96 bg-white dark:bg-zinc-900 text-black dark:text-white border-gray-200 dark:border-zinc-700 rounded-xl shadow-md dark:shadow-none transition-colors duration-300">
                     <p>Email: {invoice.email}</p>
                     <p>Amount: ${invoice.amount}</p>
                     <p>Due: {invoice.dueDate}</p>
@@ -181,6 +211,5 @@ export default function Dashboard() { // Dashboard component
             ))}
         </ul>
     </main>
-  </>
 )
 }
