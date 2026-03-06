@@ -66,21 +66,6 @@ Password strength is calculated client-side and visually displayed during signup
 
 ---
 
-## 📂 Project Structure
-src/
-├── app/
-│ ├── dashboard/
-│ ├── login/
-│ ├── layout.tsx
-│ └── page.tsx
-├── components/
-│ ├── AppNavbar.tsx
-│ └── Navbar.tsx
-└── lib/
-└── supabase.ts
-
----
-
 ## 📌 Roadmap
 
 - Free & Pro subscription tiers
