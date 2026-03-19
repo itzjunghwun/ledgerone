@@ -18,6 +18,7 @@ export default function Dashboard() { // Dashboard component
     const [dueDate, setDueDate] = useState('')
     const [invoices, setInvoices] = useState<Invoice[]>([])
 
+
     useEffect(() => { // Fetch user on mount
         async function initialize() {
             const { data } = await supabase.auth.getUser() // Fetch user data
@@ -50,7 +51,7 @@ export default function Dashboard() { // Dashboard component
             email: invoice.email,
             amount: invoice.amount,
             dueDate: invoice.due_date,
-            status: invoice.status,
+            status: invoice.status.replace(/'/g, '') as 'paid' | 'unpaid',
         }))
 
         setInvoices(formatted) // Update the state with the fetched invoices
@@ -100,116 +101,178 @@ export default function Dashboard() { // Dashboard component
     if (!user) return null
 
     return (
-        <main className="flex flex-col items-center gap-12 px-8 pt-20 transition-colors duration-300">
-        <h1 className="text-3xl font-bold">Invoice Reminders</h1>
-        <h2 className="text-xl font-bold">
-            Create Your Invoices Here!
-        </h2>
+        <main className="flex flex-col gap-12 px-8 pt-10 max-w-7xl mx-auto transition-colors duration-300">
 
-        <div className="flex flex-col gap-2 w-64">
-            <input 
-                className="
-                border 
-                px-3 py-2 
-                rounded-md 
-                bg-white text-black 
-                dark:bg-zinc-800 dark:text-white 
-                border-gray-300 dark:border-zinc-700
-                focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white
-                transition-colors duration-300
-                "
-                placeholder="Client Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-            />
-            <input 
-                className="
-                border 
-                px-3 py-2 
-                rounded-md 
-                bg-white text-black 
-                dark:bg-zinc-800 dark:text-white 
-                border-gray-300 dark:border-zinc-700
-                focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white
-                transition-colors duration-300
-                "
-                placeholder="Amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-            />
-            <input 
-                className="
-                border 
-                px-3 py-2 
-                rounded-md 
-                bg-white text-black 
-                dark:bg-zinc-800 dark:text-white 
-                border-gray-300 dark:border-zinc-700
-                focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white
-                transition-colors duration-300
-                "
-                type="date"
-                placeholder="Due Date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-            />
+        {/* Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Total Invoices
+                </p>
+                <p className="text-2xl font-semibold mt-2">
+                    {invoices.length}
+                </p>
+            </div>
 
-            <button
-                className="
-                    bg-black text-white 
-                    dark:bg-white dark:text-black 
-                    px-4 py-2 
-                    rounded-md 
-                    transition-colors duration-300 
-                    hover:opacity-80
-                "
-                onClick={addInvoice}
-            >
-                Add Invoice
-            </button>
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Paid
+                </p>
+                <p className="text-2xl font-semibold mt-2">
+                    {invoices.filter((i) => i.status === 'paid').length}
+                </p>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Unpaid
+                </p>
+                <p className="text-2xl font-semibold mt-2">
+                    {invoices.filter((i) => i.status === 'unpaid').length}
+                </p>
+            </div>
         </div>
 
-        <ul className="mt-4">
-            {invoices.map((invoice) => (
-                <li key={invoice.id} className="border p-5 w-96 bg-white dark:bg-zinc-900 text-black dark:text-white border-gray-200 dark:border-zinc-700 rounded-xl shadow-md dark:shadow-none transition-colors duration-300">
-                    <p>Email: {invoice.email}</p>
-                    <p>Amount: ${invoice.amount}</p>
-                    <p>Due: {invoice.dueDate}</p>
-                    <p>
-                        Status:{' '}
-                        <span
-                            className={`font-bold ${
-                                invoice.status === 'paid'
-                                    ? 'text-green-500'
-                                    : 'text-red-500'
-                            }`}
-                        >
-                            {invoice.status}
-                        </span>
-                    </p>
+        {/* Page Header */}
+        <div className="flex items-center justify-between w-full max-w-6xl">
+            <div>
+                <h1 className="text-3xl font-semibold tracking-tight">
+                    Dashboard
+                </h1>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">
+                    Manage and track your invoices.
+                </p>
+            </div>
+        </div>
 
-                    <div className="mt-3 flex gap-3">
-                        <button
-                            className="flex-1 bg-red-500 hover:bg-red-600 transition text-white py-2 rounded"
-                            onClick={() => deleteInvoice(invoice.id)}
-                        >
-                            Delete
-                        </button>
+        {/* Main Content Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 mt-8">
+            {/* Create Invoice Card */}
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-8 shadow-sm lg:col-span-1">
 
-                        <button
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 transition text-white py-2 rounded"
-                            onClick={() =>
-                                toggleStatus(invoice.id, invoice.status)
-                            }
-                        >
-                            Mark as{' '}
-                            {invoice.status === 'unpaid' ? 'Paid' : 'Unpaid'}
-                        </button>
-                    </div>
-                </li>
-            ))}
-        </ul>
+                <h3 className="text-lg font-semibold mb-6">
+                    Create New Invoice
+                </h3>
+
+                <div className="flex flex-col gap-4">
+
+                    <input 
+                        className="border px-4 py-3 rounded-md bg-white dark:bg-zinc-800 dark:text-white border-gray-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                        placeholder="Client Email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+
+                    <input
+                        className="border px-4 py-3 rounded-md bg-white dark:bg-zinc-800 dark:text-white border-gray-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                        placeholder="Amount"
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                    />
+
+                    <input
+                        className="border px-4 py-3 rounded-md bg-white dark:bg-zinc-800 dark:text-white border-gray-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                        type="date"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                    />
+
+                    <button
+                        onClick={addInvoice}
+                        className="bg-black text-white dark:bg-white dark:text-black py-3 rounded-md font-medium hover:opacity-80 transition"
+                    >
+                        Add Invoice
+                    </button>
+                </div>
+            </div>
+
+            {/* Invoice Table */}
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden lg:col-span-2">
+            
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-zinc-800">
+                    <h3 className="text-lg font-semibold">
+                        Invoices
+                    </h3>
+                </div>
+                <div>
+                    <table className="w-full text-sm border-collapse">
+                        <thead className="bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
+                            <tr>
+                                <th className="text-left px-6 py-4 w-[35%]">Client</th>
+                                <th className="text-left px-6 py-4 w-[20%]">Amount</th>
+                                <th className="text-left px-6 py-4 w-[25%]">Due Date</th>
+                                <th className="text-left px-6 py-4 w-[15%]">Status</th>
+                                <th className="px-6 py-4 w-12"></th>
+                            </tr>
+                        </thead>
+                
+                        <tbody>
+                            {invoices.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-10 text-gray-500">
+                                        No invoices found.
+                                    </td>
+                                </tr>
+                            )}
+                    
+                            {invoices.map((invoice) => (
+                                <tr
+                                    key={invoice.id}
+                                    className="border-t border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800 transition align-middle"
+                                >
+                                    <td className="px-6 py-4">{invoice.email}</td>
+
+                                    <td className="px-6 py-4 font-medium">
+                                        ${invoice.amount.toLocaleString()}
+                                    </td>
+
+                                    <td className="px-6 py-4">{invoice.dueDate}</td>
+
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center">
+                                            {/* Status Toggle */}
+                                            <button
+                                                onClick={() => toggleStatus(invoice.id, invoice.status)}
+                                                className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                                                    invoice.status === "paid"
+                                                        ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300"
+                                                        : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300"
+                                                }`}
+                                            >
+                                                {invoice.status}
+                                            </button>
+                                        </div>
+                                    </td>
+                                    
+                                    <td className="px-6 py-4 text-right">
+                                        <button 
+                                            onClick={() => deleteInvoice(invoice.id)}
+                                            className="text-gray-400 hover:text-red-500 transition"
+                                        >
+                                            <svg 
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M6 7h12M9 7V4h6v3m-7 4v6m4-6v6m5-10H5l1 14h12l1-14z"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </main>
 )
 }

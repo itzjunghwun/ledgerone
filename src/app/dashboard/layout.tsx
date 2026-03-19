@@ -8,11 +8,13 @@ export default function DashboardLayout({
     children: React.ReactNode
 }) {
     return (
-        <div className="min-h-screen transition-colors duration-300">
+        <div className="min-h-screen flex flex-col transition-colors duration-300">
             <AppNavbar />
-            <main className="px-12 py-10">
-                {children}
-            </main>
+            <div className="flex-1 bg-gray-50 dark:bg-zinc-950">
+                <main className="max-w-6xl mx-auto px-8 py-10">
+                    {children}
+                </main>
+            </div>
         </div>
     )
 }
