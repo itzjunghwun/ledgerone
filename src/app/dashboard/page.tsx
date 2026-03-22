@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 type Invoice = {
     id: string
+    clientName: string
     email: string
     amount: number 
     dueDate: string
@@ -13,17 +14,39 @@ type Invoice = {
 
 export default function Dashboard() { // Dashboard component
     const [user, setUser] = useState<any>(null)
+    const [clientName, setClientName] = useState('')
     const [email, setEmail] = useState('')
     const [amount, setAmount] = useState('')
     const [dueDate, setDueDate] = useState('')
     const [invoices, setInvoices] = useState<Invoice[]>([])
+    const [plan, setPlan] = useState<string>('free')
 
 
     useEffect(() => { // Fetch user on mount
         async function initialize() {
             const { data } = await supabase.auth.getUser() // Fetch user data
-            setUser(data.user)
+            const currentUser = data.user
+            setUser(currentUser)
+            
+            if (!currentUser) return 
+
+            // check if profile exists
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('plan')
+                .eq('id', currentUser.id)
+                .single()
+
+            if (!profile) {
+                await supabase.from('profiles').insert([
+                    { id: currentUser.id, plan: 'free' }
+                ])
+                setPlan('free')
+            } else {
+                setPlan(profile.plan)
+            }
         }
+
         initialize()
 
         const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -48,6 +71,7 @@ export default function Dashboard() { // Dashboard component
 
         const formatted = data.map((invoice) => ({ // Format the fetched invoices
             id: invoice.id,
+            clientName:invoice.client_name,
             email: invoice.email,
             amount: invoice.amount,
             dueDate: invoice.due_date,
@@ -66,10 +90,24 @@ export default function Dashboard() { // Dashboard component
     }, [user])
 
     async function addInvoice() { // Add a new invoice
-        if (!email || !amount || !dueDate || !user) return
+        if (plan === 'free' && invoices.length >= 3) {
+            alert('Free plan limited to 3 invoices. Upgrade to Pro.')
+            return
+        }
+
+        if (!clientName.trim()) {
+            alert('Client full name is required.')
+            return
+        }
+
+        if (!email || ! amount || !dueDate || !user) {
+            alert('Please fill in all fields.')
+            return
+        }
 
         await supabase.from('invoices').insert([ // Insert a new invoice
         {
+            client_name: clientName, // Client name
             email: email, // Client email
             amount: Number(amount), // Convert amount to number
             due_date: dueDate, // Convert dueDate to string
@@ -81,6 +119,7 @@ export default function Dashboard() { // Dashboard component
     setEmail('')
     setAmount('')
     setDueDate('')
+    setClientName('')
     }
 
     async function deleteInvoice(id: string) { // Delete an invoice
@@ -102,10 +141,35 @@ export default function Dashboard() { // Dashboard component
 
     return (
         <main className="flex flex-col gap-12 px-8 pt-10 max-w-7xl mx-auto transition-colors duration-300">
+        <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-6 py-4 rounded-xl shadow-sm">
+            
+            <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">Current Plan</span>
+
+                <span
+                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                        plan === 'free'
+                            ? 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300'
+                            : 'bg-black text-white dark:bg-white dark:text-black'
+                    }`}
+                >
+                    {plan}
+                </span>
+            </div>
+
+            {plan === 'free' && (
+                <a 
+                    href="/pricing"
+                    className="text-sm bg-black text-white dark:bg-white dark:text-black px-5 py-2 rounded-full hover:opacity-80 transition"
+                >
+                    Upgrade to Pro
+                </a>
+            )}
+        </div>
 
         {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-zinc-800 hover:shadow-lg transition">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     Total Invoices
                 </p>
@@ -114,7 +178,7 @@ export default function Dashboard() { // Dashboard component
                 </p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-zinc-800 hover:shadow-lg transition">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     Paid
                 </p>
@@ -123,7 +187,7 @@ export default function Dashboard() { // Dashboard component
                 </p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-zinc-800 hover:shadow-lg transition">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     Unpaid
                 </p>
@@ -155,6 +219,14 @@ export default function Dashboard() { // Dashboard component
                 </h3>
 
                 <div className="flex flex-col gap-4">
+
+                    <input 
+                        required
+                        className="border px-4 py-3 rounded-md bg-white dark:bg-zinc-800 dark:text-white border-gray-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                        placeholder="Client Full Name"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                    />
 
                     <input 
                         className="border px-4 py-3 rounded-md bg-white dark:bg-zinc-800 dark:text-white border-gray-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
@@ -210,18 +282,47 @@ export default function Dashboard() { // Dashboard component
                         <tbody>
                             {invoices.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-10 text-gray-500">
-                                        No invoices found.
+                                    <td colSpan={5} className="py-16 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="text-4xl">📄</div>
+                                            <div className="text-lg font-medium">
+                                                No invoices yet
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Create your first invoice to get started.
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
                     
-                            {invoices.map((invoice) => (
-                                <tr
-                                    key={invoice.id}
-                                    className="border-t border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800 transition align-middle"
-                                >
-                                    <td className="px-6 py-4">{invoice.email}</td>
+                            {invoices.map((invoice) => {
+                                const today = new Date()
+                                const due = new Date(invoice.dueDate)
+
+                                // Remove time from today so it compares correctly
+                                today.setHours(0, 0, 0, 0)
+
+                                const isOverdue =
+                                    invoice.status === 'unpaid' && due < today
+
+                                return (
+                                    <tr
+                                        key={invoice.id}
+                                        className={`border-t border-gray-200 dark:border-zinc-800 transition align-middle ${
+                                            isOverdue
+                                                ? 'bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/40'
+                                                : invoice.status === 'unpaid'
+                                                ? 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30'
+                                                : 'hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                        }`}
+                                    >
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">{invoice.clientName}</span>
+                                                <span className="text-xs text-gray-500">{invoice.email}</span>
+                                            </div>
+                                        </td>
 
                                     <td className="px-6 py-4 font-medium">
                                         ${invoice.amount.toLocaleString()}
@@ -231,43 +332,82 @@ export default function Dashboard() { // Dashboard component
 
                                     <td className="px-6 py-4">
                                         <div className="flex items-center">
-                                            {/* Status Toggle */}
                                             <button
-                                                onClick={() => toggleStatus(invoice.id, invoice.status)}
-                                                className={`px-3 py-1 rounded-full text-xs font-medium transition ${
-                                                    invoice.status === "paid"
-                                                        ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300"
-                                                        : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300"
+                                                onClick={() =>
+                                                    toggleStatus(invoice.id, invoice.status)
+                                                }
+                                                title="Click to change status"
+                                                className={`flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer hover:scale-105 active:scale-95 ${
+                                                    invoice.status === 'paid'
+                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
+                                                        : isOverdue
+                                                        ? 'bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-200'
+                                                        : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'
                                                 }`}
                                             >
-                                                {invoice.status}
+                                                {invoice.status === 'paid' ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            className="w-3 h-3"
+                                                            viewBox="0 0 20 20"
+                                                            fill="currentColor"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M16.707 5.293a1 1 0 010 1.414l-7.75 7.75a1 1 0 01-1.414 0l-3.75-3.75a1 1 0 011.414-1.414L8 11.586l7.043-7.043a1 1 0 011.414 0z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                        <span>Paid</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1">
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            className="w-3 h-3"
+                                                            viewBox="0 0 20 20"
+                                                            fill="currentColor"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-4h2v2H9v-2zm0-8h2v6H9V6z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                        <span>
+                                                            {isOverdue ? 'Overdue' : 'Unpaid'}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </button>
                                         </div>
                                     </td>
-                                    
+
                                     <td className="px-6 py-4 text-right">
-                                        <button 
+                                        <button
                                             onClick={() => deleteInvoice(invoice.id)}
                                             className="text-gray-400 hover:text-red-500 transition"
                                         >
-                                            <svg 
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="w-5 h-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                                strokeWidth={2}
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    d="M6 7h12M9 7V4h6v3m-7 4v6m4-6v6m5-10H5l1 14h12l1-14z"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M6 7h12M9 7V4h6v3m-7 4v6m4-6v6m5-10H5l1 14h12l1-14z"
+                                            />
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        )
+                    })}
                         </tbody>
                     </table>
                 </div>
