@@ -3,6 +3,7 @@
 
 html {
   color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 :root {
@@ -28,4 +29,226 @@ body {
   background: var(--background);
   color: var(--foreground);
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+.invoice-hero-animation {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.98)),
+    linear-gradient(120deg, rgba(17, 17, 17, 0.045), transparent 34%, rgba(17, 17, 17, 0.025));
+}
+
+.invoice-hero-animation::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.92), transparent 20%, transparent 80%, rgba(255,255,255,0.92)),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.7) 35%, rgba(255,255,255,0.86) 62%, rgba(255,255,255,0.94) 78%);
+  z-index: 2;
+}
+
+.invoice-hero-animation::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, transparent 0 48%, rgba(17, 17, 17, 0.06) 48% 48.08%, transparent 48.08%),
+    linear-gradient(180deg, transparent 0 52%, rgba(17, 17, 17, 0.05) 52% 52.08%, transparent 52.08%);
+  background-size: 420px 260px;
+  opacity: 0.42;
+  z-index: 1;
+}
+
+.invoice-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(17, 17, 17, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.035) 1px, transparent 1px);
+  background-size: 86px 86px;
+  mask-image:
+    linear-gradient(to bottom, transparent, black 10%, black 70%, transparent),
+    linear-gradient(to right, black, transparent 36%, transparent 64%, black);
+  animation: invoice-grid-drift 34s linear infinite;
+  z-index: 0;
+}
+
+.hero-focus-veil {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: min(1120px, 84vw);
+  height: 390px;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.82);
+  filter: blur(38px);
+  z-index: 3;
+}
+
+.dashboard-preview {
+  position: absolute;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(17, 17, 17, 0.14);
+  opacity: 0.62;
+  z-index: 2;
+  animation: dashboard-preview-float 10s ease-in-out infinite;
+}
+
+.dashboard-preview-left {
+  left: 6vw;
+  top: 13vh;
+  width: 250px;
+  padding: 18px;
+  transform: rotate(-3deg);
+}
+
+.dashboard-preview-right {
+  right: 6vw;
+  top: 13vh;
+  width: 330px;
+  padding: 18px;
+  transform: rotate(3deg);
+  animation-delay: -4s;
+}
+
+.preview-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111111;
+  margin-bottom: 14px;
+}
+
+.preview-card-header em {
+  font-style: normal;
+  color: #667085;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.preview-input {
+  height: 34px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 7px;
+  background: rgba(248, 250, 252, 0.9);
+  margin-top: 10px;
+}
+
+.preview-input.short {
+  width: 68%;
+}
+
+.preview-button {
+  height: 36px;
+  border-radius: 7px;
+  background: #111111;
+  margin-top: 14px;
+}
+
+.preview-table-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 58px;
+  gap: 12px;
+  align-items: center;
+  height: 42px;
+  border-top: 1px solid rgba(17, 17, 17, 0.09);
+}
+
+.preview-table-row span {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.13);
+}
+
+.preview-table-row strong {
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+}
+
+.preview-table-row strong.unpaid {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.dashboard-metric {
+  position: absolute;
+  display: grid;
+  gap: 7px;
+  width: 176px;
+  padding: 18px;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 22px 70px rgba(17, 17, 17, 0.14);
+  color: #111111;
+  opacity: 0.58;
+  z-index: 2;
+  animation: dashboard-preview-float 9s ease-in-out infinite;
+}
+
+.dashboard-metric span {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dashboard-metric strong {
+  font-size: 30px;
+  line-height: 1.05;
+}
+
+.metric-one {
+  left: 18vw;
+  bottom: 9vh;
+}
+
+.metric-two {
+  right: 26vw;
+  bottom: 6vh;
+  animation-delay: -3s;
+}
+
+.metric-three {
+  right: 9vw;
+  bottom: 14vh;
+  animation-delay: -6s;
+}
+
+@keyframes invoice-grid-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(86px, 86px, 0);
+  }
+}
+
+@keyframes dashboard-preview-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invoice-grid,
+  .dashboard-preview,
+  .dashboard-metric {
+    animation: none;
+  }
 }

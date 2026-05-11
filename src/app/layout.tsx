@@ -1,22 +1,18 @@
 'use client'
 
 import './globals.css'
-import { useEffect, useState } from 'react'
+import Footer from '@/components/Footer'
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-  }, [dark])
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen transition-colors duration-300">
+      <body className="min-h-screen flex flex-col transition-colors duration-300">
         {children}
+        <Footer />
       </body>
     </html>
   );

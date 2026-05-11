@@ -1,21 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 
-type Invoice = { // Invoice type definition
-  id: string
-  email: string
-  amount: number
-  dueDate: string
-  status: 'paid' | 'unpaid'
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  )
 }
 
-export default function Home() { // Main component (Dashboard State)
+function LoginContent() { // Main component (Dashboard State)
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
   const [password, setPassword] = useState('')
   const searchParams = useSearchParams()
   const mode = searchParams.get("mode")
@@ -32,7 +31,6 @@ export default function Home() { // Main component (Dashboard State)
   useEffect(() => { // Fetch invoices on component mount (Auth Initialization + Listener)
     async function initialize() {
       const { data } = await supabase.auth.getUser()
-      setUser(data.user)
 
       if (data.user) {
         router.push('/dashboard')
@@ -42,8 +40,6 @@ export default function Home() { // Main component (Dashboard State)
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setUser(session?.user ?? null)
-
         if (session?.user) {
           router.push('/dashboard')
         }
@@ -53,7 +49,7 @@ export default function Home() { // Main component (Dashboard State)
     return () => {
       listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [router])
 
   const passwordRequirements = {
     length: password.length >= 10,

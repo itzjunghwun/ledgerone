@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/ledgerone/
 /.pnp
 .pnp.*
 .yarn/*

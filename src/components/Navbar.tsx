@@ -1,15 +1,16 @@
 'use client'
 import { supabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 
-export default function Navbar({ user }: {user: any }) {
+export default function Navbar({ user }: { user: User | null }) {
     const router = useRouter()
 
     return (
         <nav className="w-full bg-black text-white border-b border-gray-800 px-8 py-4 flex justify-between items-center">
             <div 
                 onClick={() => router.push('/dashboard')}
-                className="text-xl font-semibold cursor-pointer"
+                className="text-2xl font-semibold cursor-pointer"
             >
                 LedgerOne
             </div>
